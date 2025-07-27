@@ -1,0 +1,13 @@
+body{
+    color: white;
+    background-color: black;
+    text-align: center;
+}
+
+#gameCanvas{
+    color: white;
+    background-color: black;
+    border: 0.5vw, solid, white;
+    width: 70vw;
+    height: 40vw;
+}
