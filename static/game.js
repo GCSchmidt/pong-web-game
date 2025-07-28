@@ -1,11 +1,36 @@
 // functions 
 
-
 function getCanvasShape() {
+    let gameCanvas = document.getElementById('gameCanvas');
+    return [gameCanvas.width, gameCanvas.height];
+}
+
+function updateOnScreeResize(gameInstance){
+    updateCanvasShape();
+    updatePhysicsParams(gameInstance)
+}
+
+function updateCanvasShape() {
     let gameCanvas = document.getElementById('gameCanvas');
     gameCanvas.width = gameCanvas.offsetWidth;
     gameCanvas.height = gameCanvas.offsetHeight;
-    return [gameCanvas.width, gameCanvas.height];
+}
+
+function updatePhysicsParams(gameInstance) {
+    [, canvasHeight] = getCanvasShape();
+
+    let playerHeight = 0.15 * canvasHeight;
+    let playerWidth = 0.2 * playerHeight;
+
+    gameInstance.player1.height = playerHeight;
+    gameInstance.player1.width = playerWidth;
+    gameInstance.player2.height = playerHeight;
+    gameInstance.player2.width = playerWidth;
+    gameInstance.ball.width = playerWidth;
+
+    gameInstance.ball.velocity = gameCanvas.height * gameInstance.ball.velocityFactor;
+    gameInstance.player1.velocity = gameCanvas.height * gameInstance.player1.velocityFactor;
+    gameInstance.player2.velocity = gameCanvas.height * gameInstance.player2.velocityFactor;
 }
 
 function toRadians(deg) {
@@ -34,31 +59,28 @@ function getDistanceFromPlayerToBall(ball, player){
 
 class Player {
     constructor(){
-        this.velocity = 300;
+        this.velocityFactor = 0.5;
+        this.velocity = 0;
         this.score = 0;
         this.forwardVector = [1, 0];
-        this.resetPosition();
-    }
-
-    move(delta) {
-        let [, canvasHeight] = getCanvasShape();
-        let playerHeight = 0.15 * canvasHeight;
-        let yMax = canvasHeight - playerHeight/2;
-        let yMin = playerHeight/2;
-        if (keysPressed['w']) {
-            this.yPosition -= this.velocity * delta;
-        }
-        if (keysPressed['s']) {
-            this.yPosition += this.velocity * delta;
-        }
-        // dont let player leave canvas
-        this.yPosition = Math.max(yMin,Math.min(yMax, this.yPosition));
-        return;
+        this.height = 0;
+        this.width = 0;
+        this.resetYPosition();
     }
 
     resetPosition(){
-        this.yPosition = document.getElementById('gameCanvas').offsetHeight*0.5;
-    } 
+        this.resetYPosition();
+        this.resetXPosition();
+    }
+
+    resetXPosition(){
+        this.xPosition = this.width;
+    }
+
+    resetYPosition(){
+        let [, canvasHeight] = getCanvasShape();
+        this.yPosition = canvasHeight*0.5;
+    }
 
     scorePoint(){
         this.score += 1
@@ -69,22 +91,36 @@ class Player {
 class HumanPlayer extends Player{
     constructor(){
         super();
+        this.resetXPosition();
+    }
+
+    move(delta) {
         let [, canvasHeight] = getCanvasShape();
-        let playerHeight = 0.15 * canvasHeight;
-        let playerWidth = 0.2 * playerHeight;
-        this.xPosition = playerWidth;
+        let yMax = canvasHeight - this.height/2;
+        let yMin = this.height/2;
+        if (keysPressed['w']) {
+            this.yPosition -= this.velocity * delta;
+        }
+        if (keysPressed['s']) {
+            this.yPosition += this.velocity * delta;
+        }
+        // dont let player leave canvas
+        this.yPosition = Math.max(yMin,Math.min(yMax, this.yPosition));
+        return;
     }
 }
 
 class CpuPlayer extends Player{
     constructor(){
         super();
-        this.velocity = 150;
-        let [canvasWidth, canvasHeight] = getCanvasShape();
-        let playerHeight = 0.15 * canvasHeight;
-        let playerWidth = 0.2 * playerHeight;
-        this.xPosition = canvasWidth-playerWidth;
+        this.velocityFactor = 0.33;
+        this.velocity = 0;
         this.forwardVector = [-1, 0];
+    }
+
+    resetXPosition(){
+        let [canvasWidth,] = getCanvasShape();
+        this.xPosition = canvasWidth-this.width;
     }
 
     move(delta, yBall){
@@ -95,9 +131,8 @@ class CpuPlayer extends Player{
         this.yPosition += distance;
         // dont let player leave canvas
         let [, canvasHeight] = getCanvasShape();
-        let playerHeight = 0.15 * canvasHeight;
-        let yMax = canvasHeight - playerHeight/2;
-        let yMin = playerHeight/2;
+        let yMax = canvasHeight - this.height/2;
+        let yMin =this.height/2;
         this.yPosition = Math.max(yMin,Math.min(yMax, this.yPosition));
         return;
     }
@@ -105,7 +140,9 @@ class CpuPlayer extends Player{
 
 class Ball{
     constructor(){
-        this.velocity = 200;
+        this.velocityFactor = 0.5;
+        this.velocity = 0;
+        this.width = 0;
         this.reset();
     }
 
@@ -131,12 +168,9 @@ class Ball{
 
     dealWithWallCollision(){
         let [, canvasHeight] = getCanvasShape();
-        let playerHeight = 0.15 * canvasHeight;
-        let playerWidth = 0.2 * playerHeight;
-        let ballWidth = playerWidth;
         // detect wall collisions and reflect
-        let upperBorder = ballWidth/2;
-        let lowerBorder = canvasHeight-ballWidth/2;
+        let upperBorder = this.width/2;
+        let lowerBorder = canvasHeight-this.width/2;
         if (this.yPosition <= upperBorder || this.yPosition >= lowerBorder){
             this.forwardVector[1] *= -1;
         }
@@ -150,20 +184,15 @@ class Ball{
             // cant collide
             return;
         }
-
-        let [, canvasHeight] = getCanvasShape();
-        let playerHeight = 0.15 * canvasHeight;
-        let playerWidth = 0.2 * playerHeight;
-
         
-        let xMax = playerWidth/2;
-        let xMin = -playerWidth/2;
+        let xMax = player.width/2;
+        let xMin = -player.width/2;
         if (distance > xMax  || distance < xMin) {
             // is not at the raket
             return;
         } 
-        let yMax = player.yPosition + playerHeight/2;
-        let yMin = player.yPosition - playerHeight/2;
+        let yMax = player.yPosition + player.height/2;
+        let yMin = player.yPosition - player.height/2;
 
         if(this.yPosition > yMin && this.yPosition < yMax){
             // is within the raket
@@ -196,9 +225,10 @@ class Game{
     
     reset() {
         // sets up game for next point
+        updatePhysicsParams(this);
         this.player1.resetPosition();
         this.player2.resetPosition();
-        this.ball.reset()
+        this.ball.reset();
     }
 
     start() {
@@ -253,31 +283,28 @@ class Game{
     draw(){
         let gameCanvas = document.getElementById('gameCanvas');
         let [canvasWidth, canvasHeight] = getCanvasShape()
-        let playerHeight = 0.15 * canvasHeight;
-        let playerWidth = 0.2 * playerHeight;
-        let ballWidth = playerWidth;
-          if (gameCanvas.getContext) {
+        if (gameCanvas.getContext) {
             let context = gameCanvas.getContext("2d");
             context.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
             context.fillStyle = "white";
             // draw player 1
-            let x = playerWidth;
-            let y = this.player1.yPosition - playerHeight/2; 
-            context.fillRect(x, y, playerWidth, playerHeight); 
+            let x = this.player1.width;
+            let y = this.player1.yPosition - this.player1.height/2; 
+            context.fillRect(x, y, this.player1.width, this.player1.height); 
             // draw player 1
-            x = canvasWidth - 2*playerWidth;
-            y = this.player2.yPosition - playerHeight/2; 
-            context.fillRect(x, y, playerWidth, playerHeight); 
+            x = canvasWidth - 2*this.player2.width;
+            y = this.player2.yPosition - this.player1.height/2; 
+            context.fillRect(x, y, this.player2.width, this.player2.height); 
             // draw ball
-            x = this.ball.xPosition - ballWidth/2;
-            y = this.ball.yPosition - ballWidth/2; 
-            context.fillRect(x, y, ballWidth, ballWidth); 
+            x = this.ball.xPosition - this.ball.width/2;
+            y = this.ball.yPosition - this.ball.width/2; 
+            context.fillRect(x, y, this.ball.width, this.ball.width); 
         }
     }
 
     hasWinner(){
         if (this.player1.score == 11 || this.player2.score == 11 ) {
-            return true
+            return true;
         }
         return false;
     }
@@ -286,13 +313,13 @@ class Game{
         let [canvasWidth, ] = getCanvasShape()
         if (this.ball.xPosition <= 0){
             this.player2.scorePoint();
-            return true
+            return true;
         }
         else if (this.ball.xPosition >= canvasWidth){
             this.player1.scorePoint();
-            return true
+            return true;
         }
-        return false
+        return false;
     }
 
     updateScore(){
@@ -305,8 +332,6 @@ class Game{
 
 // Manage Game
 
-
-const game = new Game();
 
 function startGame() {
     if (!game.isRunning){
@@ -321,11 +346,10 @@ function stopGame() {
     game.stop();
 }
 
-// manage key presses 
 
+// Event listeners 
 
 const keysPressed = {};
-
 window.addEventListener('keydown', (e) => {
     if (e.key === 'w' || e.key === 's') {
         keysPressed[e.key] = true;
@@ -337,3 +361,13 @@ window.addEventListener('keyup', (e) => {
         keysPressed[e.key] = false;
     }
 });
+
+
+const game = new Game();
+updateOnScreeResize(game)
+
+window.addEventListener('resize', () => {
+    updateOnScreeResize(game);
+});
+
+
