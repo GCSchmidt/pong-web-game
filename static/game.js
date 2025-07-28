@@ -87,7 +87,7 @@ class CpuPlayer extends Player{
         this.forwardVector = [-1, 0];
     }
 
-    move(delta, yBall){s
+    move(delta, yBall){
         let distanceToBall = yBall - this.yPosition;
         let maxDistance = this.velocity*delta;
         let distance = Math.min(maxDistance, Math.abs(distanceToBall));
